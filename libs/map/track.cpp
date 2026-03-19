@@ -89,7 +89,7 @@ std::string Track::GetDescription() const
 
 void Track::SetData(kml::TrackData const & data)
 {
-  m_isDirty = true;
+  SetDirty();
   m_data = data;
 
   m_elevationInfo.reset();
@@ -168,7 +168,7 @@ dp::Color Track::GetColor(size_t layerIndex) const
 
 void Track::SetColor(dp::Color color)
 {
-  m_isDirty = true;
+  SetDirty();
   m_data.m_layers[0].m_color.m_rgba = color.GetRGBA();
 }
 
@@ -190,7 +190,7 @@ kml::Timestamp Track::GetModifiedTimestamp() const
 
 void Track::SetModifiedTimestamp(kml::Timestamp ts)
 {
-  m_isDirty = true;
+  SetDirty();
   m_data.m_modifiedTimestamp = ts;
 }
 
