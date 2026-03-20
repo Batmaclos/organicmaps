@@ -373,7 +373,7 @@ UNIT_TEST(Kml_Deserialization_Bin_File)
 UNIT_TEST(Kml_Serialization_Bin_File)
 {
   auto data = GenerateKmlFileData();
-  // KMB format doesn't have 'editTimestamp' field. Let's erase this field.
+  // KMB format doesn't have 'm_modifiedTimestamp' field. Let's erase this field.
   for (auto & bookmark : data.m_bookmarksData)
     bookmark.m_modifiedTimestamp = kml::Timestamp();
   for (auto & track : data.m_tracksData)
