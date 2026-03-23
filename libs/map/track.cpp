@@ -79,6 +79,7 @@ std::string Track::GetName() const
 
 void Track::SetName(std::string const & name)
 {
+  SetDirty();
   kml::SetDefaultStr(m_data.m_name, name);
 }
 
