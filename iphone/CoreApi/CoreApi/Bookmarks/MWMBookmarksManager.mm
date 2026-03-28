@@ -716,7 +716,7 @@ static FileType convertFileTypeToCore(MWMFileType fileType)
   auto kmlColor = kmlColorFromBookmarkColor(color);
 
   if (bookmark->GetPreferredName() == title.UTF8String && bookmark->GetDescription() == description.UTF8String &&
-      kmlColor != bookmark->GetColor())
+      kmlColor == bookmark->GetColor())
     return;  // No changes in bookmark parameters.
 
   if (kmlColor != bookmark->GetColor())
@@ -726,7 +726,7 @@ static FileType convertFileTypeToCore(MWMFileType fileType)
   bookmark->SetDescription(description.UTF8String);
   if (title.UTF8String != bookmark->GetPreferredName())
     bookmark->SetCustomName(title.UTF8String);
-  bookmark->SetModifiedTimeStamp(kml::TimestampClock::now());
+  bookmark->SetModifiedTimestamp(kml::TimestampClock::now());
 }
 
 - (void)updateBookmark:(MWMMarkID)bookmarkId setColor:(MWMBookmarkColor)color
@@ -742,7 +742,7 @@ static FileType convertFileTypeToCore(MWMFileType fileType)
 
   self.bm.SetLastEditedBmColor(kmlColor);
   bookmark->SetColor(kmlColor);
-  bookmark->SetModifiedTimeStamp(kml::TimestampClock::now());
+  bookmark->SetModifiedTimestamp(kml::TimestampClock::now());
 }
 
 - (void)setCategory:(MWMMarkGroupID)groupId bookmarksColor:(MWMBookmarkColor)color
@@ -794,7 +794,7 @@ static FileType convertFileTypeToCore(MWMFileType fileType)
     track->SetColor(newColor);
 
   track->SetName(title.UTF8String);
-  track->SetModifiedTimeStamp(kml::TimestampClock::now());
+  track->SetModifiedTimestamp(kml::TimestampClock::now());
 }
 
 - (void)updateTrack:(MWMTrackID)trackId setColor:(UIColor *)color
