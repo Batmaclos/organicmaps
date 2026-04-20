@@ -100,16 +100,29 @@ final class CarPlayService: NSObject {
       title: L("car_continue_in_the_car"),
       style: .default,
       handler: { [weak self] _ in
-        self?.savedInterfaceController?.dismissTemplate(animated: false)
-        self?.showOnCarplay()
+        self?.savedInterfaceController?.dismissTemplate(animated: false) { _, error in
+          if let error {
+            LOG(.warning, "Failed to dismiss CarPlay alert: \(error.localizedDescription)")
+          }
+          self?.showOnCarplay()
+        }
       }
     )
     let alert = CPAlertTemplate(
       titleVariants: [L("car_used_on_the_phone_screen")],
       actions: [switchToCarAction]
     )
-    savedInterfaceController?.dismissTemplate(animated: false)
-    savedInterfaceController?.presentTemplate(alert, animated: false)
+    savedInterfaceController?.dismissTemplate(animated: false) { [weak self] _, error in
+      guard let self else { return }
+      if let error {
+        LOG(.warning, "Failed to dismiss CarPlay alert: \(error.localizedDescription)")
+      }
+      self.savedInterfaceController?.presentTemplate(alert, animated: false) { _, error in
+        if let error {
+          LOG(.warning, "Failed to present CarPlay alert: \(error.localizedDescription)")
+        }
+      }
+    }
   }
 
   private func switchScreenToPhone() {
@@ -198,49 +211,86 @@ final class CarPlayService: NSObject {
     let mapTemplate = MapTemplateBuilder.buildBaseTemplate(positionMode: currentPositionMode)
     mapTemplate.mapDelegate = self
     mapTemplate.tripEstimateStyle = rootTemplateStyle
-    interfaceController?.setRootTemplate(mapTemplate, animated: true)
-    FrameworkHelper.rotateMap(0.0, animated: false)
+    interfaceController?.setRootTemplate(mapTemplate, animated: true) { _, error in
+      if let error {
+        LOG(.warning, "Failed to set CarPlay root template: \(error.localizedDescription)")
+      }
+      FrameworkHelper.rotateMap(0.0, animated: false)
+    }
   }
 
   private func applyNavigationRootTemplate(trip: CPTrip, routeInfo: RouteInfo) {
     let mapTemplate = MapTemplateBuilder.buildNavigationTemplate()
     mapTemplate.mapDelegate = self
-    interfaceController?.setRootTemplate(mapTemplate, animated: true)
-    router?.startNavigationSession(forTrip: trip, template: mapTemplate)
-    if let estimates = createEstimates(routeInfo: routeInfo) {
-      mapTemplate.tripEstimateStyle = rootTemplateStyle
-      mapTemplate.updateEstimates(estimates, for: trip)
-    }
+    interfaceController?.setRootTemplate(mapTemplate, animated: true) { [weak self] _, error in
+      guard let self else { return }
+      if let error {
+        LOG(.warning, "Failed to set CarPlay navigation template: \(error.localizedDescription)")
+      }
+      self.router?.startNavigationSession(forTrip: trip, template: mapTemplate)
+      if let estimates = self.createEstimates(routeInfo: routeInfo) {
+        mapTemplate.tripEstimateStyle = rootTemplateStyle
+        mapTemplate.updateEstimates(estimates, for: trip)
+      }
 
-    if let carplayVC = carplayVC {
-      carplayVC.updateCurrentSpeed(routeInfo.speedMps, speedLimitMps: routeInfo.speedLimitMps)
-      carplayVC.showSpeedControl()
+      if let carplayVC = self.carplayVC {
+        carplayVC.updateCurrentSpeed(routeInfo.speedMps, speedLimitMps: routeInfo.speedLimitMps)
+        carplayVC.showSpeedControl()
+      }
     }
   }
 
   func pushTemplate(_ templateToPush: CPTemplate, animated: Bool) {
-    if let interfaceController = interfaceController {
-      switch templateToPush {
-      case let list as CPListTemplate:
-        list.delegate = self
-      case let search as CPSearchTemplate:
-        search.delegate = self
-      case let map as CPMapTemplate:
-        map.mapDelegate = self
-      default:
-        break
+    guard let interfaceController else {
+      LOG(.error, "Failed to push CarPlay template: interfaceController is nil")
+      return
+    }
+    switch templateToPush {
+    case let search as CPSearchTemplate:
+      search.delegate = self
+    case let map as CPMapTemplate:
+      map.mapDelegate = self
+    default:
+      break
+    }
+    interfaceController.pushTemplate(templateToPush, animated: animated) { _, error in
+      if let error {
+        LOG(.warning, "Failed to push CarPlay template: \(error.localizedDescription)")
       }
-      interfaceController.pushTemplate(templateToPush, animated: animated)
     }
   }
 
   func popTemplate(animated: Bool) {
-    interfaceController?.popTemplate(animated: animated)
+    interfaceController?.popTemplate(animated: animated) { _, error in
+      if let error {
+        LOG(.warning, "Failed to pop CarPlay template: \(error.localizedDescription)")
+      }
+    }
   }
 
   func presentAlert(_ template: CPAlertTemplate, animated: Bool) {
-    interfaceController?.dismissTemplate(animated: false)
-    interfaceController?.presentTemplate(template, animated: animated)
+    guard let interfaceController else {
+      LOG(.error, "Failed to present CarPlay template alert: interfaceController is nil")
+      return
+    }
+    if interfaceController.presentedTemplate != nil {
+      interfaceController.dismissTemplate(animated: false) { [weak interfaceController] _, error in
+        if let error {
+          LOG(.warning, "Failed to dismiss CarPlay alert: \(error.localizedDescription)")
+        }
+        interfaceController?.presentTemplate(template, animated: animated) { _, error in
+          if let error {
+            LOG(.warning, "Failed to present CarPlay alert: \(error.localizedDescription)")
+          }
+        }
+      }
+    } else {
+      interfaceController.presentTemplate(template, animated: animated) { _, error in
+        if let error {
+          LOG(.warning, "Failed to present CarPlay alert: \(error.localizedDescription)")
+        }
+      }
+    }
   }
 
   func cancelCurrentTrip() {
@@ -294,7 +344,7 @@ final class CarPlayService: NSObject {
 
     let alert = CPNavigationAlert(titleVariants: [L("trip_finished")],
                                   subtitleVariants: [subtitle],
-                                  imageSet: nil,
+                                  image: nil,
                                   primaryAction: doneAction,
                                   secondaryAction: nil,
                                   duration: 0)
@@ -329,7 +379,11 @@ final class CarPlayService: NSObject {
        let info = presentedTemplate.userInfo as? [String: String],
        let alertType = info[CPConstants.TemplateKey.alert],
        alertType == CPConstants.TemplateType.downloadMap {
-      interfaceController?.dismissTemplate(animated: true)
+      interfaceController?.dismissTemplate(animated: true) { _, error in
+        if let error {
+          LOG(.warning, "Failed to dismiss CarPlay alert: \(error.localizedDescription)")
+        }
+      }
     }
   }
 }
@@ -475,20 +529,30 @@ extension CarPlayService: CPMapTemplateDelegate {
 
     MapTemplateBuilder.configureNavigationUI(mapTemplate: rootMapTemplate)
 
-    if interfaceController.templates.count > 1 {
-      interfaceController.popToRootTemplate(animated: false)
-    }
-    router.startNavigationSession(forTrip: trip, template: rootMapTemplate)
-    router.startRoute()
-    if let estimates = createEstimates(routeInfo: info) {
-      rootMapTemplate.updateEstimates(estimates, for: trip)
+    let startNavigation = { [weak self] in
+      router.startNavigationSession(forTrip: trip, template: rootMapTemplate)
+      router.startRoute()
+      if let estimates = self?.createEstimates(routeInfo: info) {
+        rootMapTemplate.updateEstimates(estimates, for: trip)
+      }
+
+      if let carplayVC = self?.carplayVC {
+        carplayVC.updateCurrentSpeed(info.speedMps, speedLimitMps: info.speedLimitMps)
+        carplayVC.showSpeedControl()
+      }
+      self?.updateVisibleViewPortState(.navigation)
     }
 
-    if let carplayVC = carplayVC {
-      carplayVC.updateCurrentSpeed(info.speedMps, speedLimitMps: info.speedLimitMps)
-      carplayVC.showSpeedControl()
+    if interfaceController.templates.count > 1 {
+      interfaceController.popToRootTemplate(animated: false) { _, error in
+        if let error {
+          LOG(.warning, "Failed to pop CarPlay templates to root: \(error.localizedDescription)")
+        }
+        startNavigation()
+      }
+    } else {
+      startNavigation()
     }
-    updateVisibleViewPortState(.navigation)
   }
 
   func mapTemplate(_: CPMapTemplate, displayStyleFor maneuver: CPManeuver) -> CPManeuverDisplayStyle {
@@ -520,10 +584,10 @@ extension CarPlayService: CPMapTemplateDelegate {
   }
 }
 
-// MARK: - CPListTemplateDelegate implementation
+// MARK: - List Item Selection
 
-extension CarPlayService: CPListTemplateDelegate {
-  func listTemplate(_: CPListTemplate, didSelect item: CPListItem, completionHandler: @escaping () -> Void) {
+extension CarPlayService {
+  func handleSelectedListItem(_ item: CPListItem, completionHandler: @escaping () -> Void) {
     if let userInfo = item.userInfo as? ListItemInfo {
       switch userInfo.type {
       case CPConstants.ListItemType.history:
@@ -533,7 +597,10 @@ extension CarPlayService: CPListTemplateDelegate {
           return
         }
         searchService.searchText(item.text ?? "", forInputLocale: locale, completionHandler: { [weak self] results in
-          guard let self = self else { return }
+          guard let self = self else {
+            completionHandler()
+            return
+          }
           let template = ListTemplateBuilder.buildListTemplate(for: .searchResults(results: results))
           completionHandler()
           self.pushTemplate(template, animated: true)
@@ -555,6 +622,8 @@ extension CarPlayService: CPListTemplateDelegate {
       default:
         completionHandler()
       }
+    } else {
+      completionHandler()
     }
   }
 }
@@ -728,9 +797,23 @@ extension CarPlayService {
       mapTemplate.mapDelegate = self
 
       if interfaceController.templates.count > 1 {
-        interfaceController.popToRootTemplate(animated: false)
+        interfaceController.popToRootTemplate(animated: false) { [weak interfaceController] _, error in
+          if let error {
+            LOG(.warning, "Failed to pop CarPlay templates to root: \(error.localizedDescription)")
+          }
+          interfaceController?.pushTemplate(mapTemplate, animated: false) { _, error in
+            if let error {
+              LOG(.warning, "Failed to push CarPlay preview template: \(error.localizedDescription)")
+            }
+          }
+        }
+        return
       }
-      interfaceController.pushTemplate(mapTemplate, animated: false)
+      interfaceController.pushTemplate(mapTemplate, animated: false) { _, error in
+        if let error {
+          LOG(.warning, "Failed to push CarPlay preview template: \(error.localizedDescription)")
+        }
+      }
     }
   }
 
@@ -754,25 +837,29 @@ extension CarPlayService {
     template.updateEstimates(estimates, for: trip)
   }
 
-  func showRerouteAlert(trips: [CPTrip]) {
+  private func dismissTemplate(_: CPAlertAction? = nil) {
+    interfaceController?.dismissTemplate(animated: true) { _, error in
+      if let error {
+        LOG(.warning, "Failed to dismiss CarPlay template: \(error.localizedDescription)")
+      }
+    }
+  }
+
+  private func showRerouteAlert(trips: [CPTrip]) {
     let yesAction = CPAlertAction(title: L("yes"), style: .default, handler: { [unowned self] _ in
       router?.cancelTrip()
       updateMapTemplateUIToBase()
       preparedToPreviewTrips = trips
-      interfaceController?.dismissTemplate(animated: true)
+      dismissTemplate()
     })
-    let noAction = CPAlertAction(title: L("no"), style: .cancel, handler: { [unowned self] _ in
-      interfaceController?.dismissTemplate(animated: true)
-    })
+    let noAction = CPAlertAction(title: L("no"), style: .cancel, handler: dismissTemplate)
     let alert = CPAlertTemplate(titleVariants: [L("redirect_route_alert")], actions: [noAction, yesAction])
     alert.userInfo = [CPConstants.TemplateKey.alert: CPConstants.TemplateType.redirectRoute]
     presentAlert(alert, animated: true)
   }
 
   func showKeyboardAlert() {
-    let okAction = CPAlertAction(title: L("ok"), style: .default, handler: { [unowned self] _ in
-      interfaceController?.dismissTemplate(animated: true)
-    })
+    let okAction = CPAlertAction(title: L("ok"), style: .default, handler: dismissTemplate)
     let alert = CPAlertTemplate(titleVariants: [L("keyboard_availability_alert")], actions: [okAction])
     presentAlert(alert, animated: true)
   }
@@ -806,9 +893,7 @@ extension CarPlayService {
       return
     }
 
-    let okAction = CPAlertAction(title: L("ok"), style: .cancel, handler: { [unowned self] _ in
-      interfaceController?.dismissTemplate(animated: true)
-    })
+    let okAction = CPAlertAction(title: L("ok"), style: .cancel, handler: dismissTemplate)
     let alert = CPAlertTemplate(titleVariants: titleVariants, actions: [okAction])
     presentAlert(alert, animated: true)
   }
@@ -824,12 +909,12 @@ extension CarPlayService {
       trip.userInfo = info
       preparedToPreviewTrips = [trip]
       router?.updateStartPointAndRebuild(trip: trip)
-      interfaceController?.dismissTemplate(animated: true)
+      dismissTemplate()
     })
     let noAction = CPAlertAction(title: L("cancel"), style: .cancel, handler: { [unowned self] _ in
       FrameworkHelper.rotateMap(0.0, animated: false)
       router?.completeRouteAndRemovePoints()
-      interfaceController?.dismissTemplate(animated: true)
+      dismissTemplate()
     })
     let title = isTypeCorrect ? L("dialog_routing_rebuild_from_current_location_carplay") : L("dialog_routing_rebuild_for_vehicle_carplay")
     let alert = CPAlertTemplate(titleVariants: [title], actions: [noAction, yesAction])

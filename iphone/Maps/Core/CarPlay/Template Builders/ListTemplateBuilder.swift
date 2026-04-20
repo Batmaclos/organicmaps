@@ -66,6 +66,7 @@ final class ListTemplateBuilder {
       let item = CPListItem(text: text, detailText: nil, image: UIImage(named: "ic_carplay_recent"))
       item.userInfo = ListItemInfo(type: CPConstants.ListItemType.history,
                                    metadata: nil)
+      configureSelection(for: item)
       return item
     }
     let section = CPListSection(items: items)
@@ -81,6 +82,7 @@ final class ListTemplateBuilder {
       let item = CPListItem(text: category.title, detailText: placesString)
       item.userInfo = ListItemInfo(type: CPConstants.ListItemType.bookmarkLists,
                                    metadata: CategoryInfo(category: category))
+      configureSelection(for: item)
       return item
     }
     let section = CPListSection(items: items)
@@ -95,6 +97,7 @@ final class ListTemplateBuilder {
       item.userInfo = ListItemInfo(type: CPConstants.ListItemType.bookmarks,
                                    metadata: BookmarkInfo(categoryId: categoryId,
                                                           bookmarkId: bookmark.bookmarkId))
+      configureSelection(for: item)
       return item
     }
     if #available(iOS 15.0, *) {
@@ -116,10 +119,21 @@ final class ListTemplateBuilder {
       let item = CPListItem(text: object.title, detailText: object.address)
       item.userInfo = ListItemInfo(type: CPConstants.ListItemType.searchResults,
                                    metadata: SearchResultInfo(originalRow: object.originalRow))
+      configureSelection(for: item)
       items.append(item)
     }
     let section = CPListSection(items: items)
     template.updateSections([section])
+  }
+
+  private class func configureSelection(for item: CPListItem) {
+    item.handler = { selectableItem, completion in
+      guard let listItem = selectableItem as? CPListItem else {
+        completion()
+        return
+      }
+      CarPlayService.shared.handleSelectedListItem(listItem, completionHandler: completion)
+    }
   }
 
   // MARK: - CPBarButton builder
