@@ -43,6 +43,12 @@ public:
 
   struct TrackSelectionInfo
   {
+    enum class Source
+    {
+      Track,
+      Relation
+    };
+
     TrackSelectionInfo() = default;
     TrackSelectionInfo(kml::TrackId trackId, m2::PointD const & trackPoint, double distFromBegM)
       : m_trackId(trackId)
@@ -66,8 +72,13 @@ public:
     /// Can be false if input m_squareDist filtered all track's segments.
     bool IsValid() const { return m_trackId != kml::kInvalidTrackId; }
 
+    Source m_source = Source::Track;
     kml::TrackId m_trackId = kml::kInvalidTrackId;
     m2::PointD m_trackPoint;
+    FeatureID m_featureId;  // Relation only.
+    std::string m_title;
+    dp::Color m_color = dp::Color::Transparent();
+
     // Distance in meters from the beginning to m_trackPoint.
     double m_distFromBegM;
     // Mercator square distance, used to select nearest track.
