@@ -1,40 +1,7 @@
 #import "ElevationProfileData+Core.h"
 #import "PlacePageTrackData+Core.h"
+#import "PlacePageTrackSelectionData+Core.h"
 #import "TrackInfo+Core.h"
-
-@interface PlacePageTrackSelectionData ()
-
-@property(nonatomic, readwrite) MWMTrackID trackId;
-@property(nonatomic, readwrite) NSString * title;
-@property(nonatomic, readwrite) UIColor * color;
-@property(nonatomic, readwrite) BOOL isSelected;
-
-- (instancetype)initWithTrackId:(MWMTrackID)trackId
-                          title:(NSString *)title
-                          color:(UIColor *)color
-                     isSelected:(BOOL)isSelected;
-
-@end
-
-@implementation PlacePageTrackSelectionData
-
-- (instancetype)initWithTrackId:(MWMTrackID)trackId
-                          title:(NSString *)title
-                          color:(UIColor *)color
-                     isSelected:(BOOL)isSelected
-{
-  self = [super init];
-  if (self)
-  {
-    _trackId = trackId;
-    _title = title;
-    _color = color;
-    _isSelected = isSelected;
-  }
-  return self;
-}
-
-@end
 
 @interface PlacePageTrackData ()
 
@@ -99,22 +66,22 @@
     _myPositionDistance = bm.GetElevationMyPosition(_trackId);
     _onActivePointChangedHandler = onActivePointChangedHandler;
     NSMutableArray<PlacePageTrackSelectionData *> * trackSelectionCandidates = [NSMutableArray array];
-    for (auto const & selectionInfo : rawData.GetTrackSelectionCandidates())
+    //    auto const selectedCandidateIndex = rawData.GetSelectedTrackSelectionCandidateIndex();
+    auto const & selectionInfos = rawData.GetTrackCandidates();
+    for (size_t candidateIndex = 0; candidateIndex < selectionInfos.size(); ++candidateIndex)
     {
-      auto const * selectionTrack = bm.GetTrack(selectionInfo.m_trackId);
-      if (selectionTrack == nullptr)
-        continue;
-
-      auto const selectionColor = selectionTrack->GetColor(0);
+      auto const & selectionInfo = selectionInfos[candidateIndex];
+      auto selectionColor = selectionInfo.m_color;
       auto * color = [UIColor colorWithRed:selectionColor.GetRedF()
                                      green:selectionColor.GetGreenF()
                                       blue:selectionColor.GetBlueF()
                                      alpha:1.f];
-      auto * title = @(selectionTrack->GetName().c_str());
+      // TODO: fix isSelected
       auto * selectionData = [[PlacePageTrackSelectionData alloc] initWithTrackId:selectionInfo.m_trackId
-                                                                            title:title
+                                                                       relationId:selectionInfo.m_featureId
+                                                                            title:@(selectionInfo.m_title.c_str())
                                                                             color:color
-                                                                       isSelected:selectionInfo.m_trackId == _trackId];
+                                                                       isSelected:NO];
       [trackSelectionCandidates addObject:selectionData];
     }
     _trackSelectionCandidates = trackSelectionCandidates;

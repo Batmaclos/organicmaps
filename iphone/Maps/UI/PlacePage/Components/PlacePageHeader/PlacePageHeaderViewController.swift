@@ -26,6 +26,7 @@ final class PlacePageHeaderViewController: UIViewController {
   @IBOutlet private var cancelButton: UIButton!
   private var titleText: String?
   private var subtitleText: String?
+  private weak var trackCandidatesSelectorViewController: PopoverListSelectorViewController?
 
   var presenter: PlacePageHeaderPresenterProtocol?
   var isEditingTitle: Bool = false {
@@ -54,6 +55,7 @@ final class PlacePageHeaderViewController: UIViewController {
     trackCandidatesButton.setImage(UIImage(named: "ic_arrow_gray_down")?.withRenderingMode(.alwaysTemplate), for: .normal)
     trackCandidatesButton.tintColor = .linkBlue
     trackCandidatesButton.isHidden = !(presenter?.canSelectTrackCandidates ?? false)
+    trackCandidatesButton.addTarget(self, action: #selector(didTapTrackCandidatesButton), for: .touchUpInside)
 
     cancelButton.setStyle(.searchCancelButton)
     cancelButton.setTitle(L("cancel"), for: .normal)
@@ -83,9 +85,12 @@ final class PlacePageHeaderViewController: UIViewController {
     if presenter?.objectType == .track, presenter?.canShare == true {
       configureTrackSharingMenu()
     }
-    if presenter?.canSelectTrackCandidates == true {
-      configureTrackCandidatesMenu()
-    }
+  }
+
+  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    super.traitCollectionDidChange(previousTraitCollection)
+    // Popovers with adaptivePresentationStyle == .none should keep the same appearance as the presenting view.
+    trackCandidatesSelectorViewController?.overrideUserInterfaceStyle = traitCollection.userInterfaceStyle
   }
 
   @objc private func onExpandPressed(sender _: UITapGestureRecognizer) {
@@ -99,6 +104,10 @@ final class PlacePageHeaderViewController: UIViewController {
 
   @objc private func didTapCancelButton() {
     resetTitleEditing()
+  }
+
+  @objc private func didTapTrackCandidatesButton() {
+    showTrackCandidatesSelector()
   }
 
   @objc private func didLongPressTitleTextView(_ sender: UILongPressGestureRecognizer) {
@@ -189,16 +198,29 @@ extension PlacePageHeaderViewController: PlacePageHeaderViewProtocol {
     shareButton.showsMenuAsPrimaryAction = true
   }
 
-  private func configureTrackCandidatesMenu() {
+  private func showTrackCandidatesSelector() {
     let candidates = presenter?.trackSelectionCandidates ?? []
-    trackCandidatesButton.menu = UIMenu(children: candidates.map { candidate in
-      UIAction(title: candidate.title,
-               image: UIImage(systemName: "circle.fill")?.withTintColor(candidate.color, renderingMode: .alwaysOriginal),
-               state: candidate.isSelected ? .on : .off) { [weak self] _ in
-        self?.presenter?.onSelectTrackCandidate(candidate.trackId)
-      }
-    })
-    trackCandidatesButton.showsMenuAsPrimaryAction = true
+    guard !candidates.isEmpty else { return }
+
+    let popoverDataSource = candidates.map { candidate in
+      PopoverListSelectorViewController.RowViewModel(title: .string(candidate.title),
+                                                     color: candidate.color,
+                                                     isSelected: candidate.isSelected,
+                                                     selectionHandler: { [weak self] in
+                                                       self?.dismiss(animated: true, completion: { [weak self] in
+                                                         self?.presenter?.onSelectTrackCandidate(candidate)
+                                                       })
+                                                     })
+    }
+    let viewController = PopoverListSelectorViewController(popoverDataSource, style: .icon)
+    viewController.modalPresentationStyle = .popover
+    viewController.overrideUserInterfaceStyle = traitCollection.userInterfaceStyle
+    viewController.popoverPresentationController?.sourceView = trackCandidatesButton
+    viewController.popoverPresentationController?.sourceRect = trackCandidatesButton.bounds
+    viewController.popoverPresentationController?.permittedArrowDirections = .any
+    viewController.popoverPresentationController?.delegate = viewController
+    trackCandidatesSelectorViewController = viewController
+    present(viewController, animated: true)
   }
 }
 
