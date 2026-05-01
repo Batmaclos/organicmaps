@@ -275,6 +275,8 @@ public:
   void ShowFeature(FeatureID const & featureId);
   void ShowBookmarkCategory(kml::MarkGroupId categoryId, bool animation = true);
 
+  void SelectTrackCandidateAtIndex(size_t candidateIndex);
+
   void AddBookmarksFile(std::string const & filePath, bool isTemporaryFile);
 
   BookmarkManager & GetBookmarkManager();
@@ -353,7 +355,10 @@ private:
   void OnTapEvent(place_page::BuildInfo const & buildInfo);
   place_page::Info BuildPlacePageInfo(place_page::BuildInfo const & buildInfo);
   void BuildTrackPlacePage(Track::TrackSelectionInfo const & trackSelectionInfo, place_page::Info & info);
-  Track::TrackSelectionInfo FindTrackInTapPosition(place_page::BuildInfo const & buildInfo) const;
+  std::vector<Track::TrackSelectionInfo> FindTracksInTapPosition(place_page::BuildInfo const & buildInfo) const;
+  /// Builds temporary track candidates for route relations associated with tapped line features.
+  std::vector<Track::TrackSelectionInfo> FindRelationTracksInTapPosition(
+      std::vector<std::pair<double, FeatureID>> const & lineCandidates, m2::PointD const & mercator);
   UserMark const * FindUserMarkInTapPosition(place_page::BuildInfo const & buildInfo) const;
   FeatureID FindBuildingAtPoint(m2::PointD const & mercator) const;
 
@@ -611,9 +616,6 @@ private:
 
   static bool ParseAllTypesDebugCommand(search::SearchParams const & params);
 
-  /// Tries to build a temporary track from a route relation associated with the feature.
-  /// If successful, fills outInfo as a track selection and returns true.
-  bool TryBuildRelationTrack(FeatureID const & fid, m2::PointD const & mercator, place_page::Info & outInfo);
   void FillUserMarkInfo(UserMark const * mark, place_page::Info & outInfo);
   void FillApiMarkInfo(ApiMarkPoint const & api, place_page::Info & info) const;
   void FillSearchResultInfo(SearchMarkPoint const & smp, place_page::Info & info) const;
