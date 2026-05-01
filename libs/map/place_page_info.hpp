@@ -1,6 +1,7 @@
 #pragma once
 
 #include "map/routing_mark.hpp"
+#include "map/track.hpp"
 
 #include "storage/storage_defines.hpp"
 
@@ -160,6 +161,13 @@ public:
   void SetTrackId(kml::TrackId trackId) { m_trackId = trackId; }
   kml::TrackId GetTrackId() const { return m_trackId; }
 
+  void SetTrackCandidates(std::vector<Track::TrackSelectionInfo> candidates)
+  {
+    m_trackSelectionCandidates = std::move(candidates);
+  }
+  std::vector<Track::TrackSelectionInfo> const & GetTrackCandidates() const { return m_trackSelectionCandidates; }
+  bool HasTrackCandidates() const { return !m_trackSelectionCandidates.empty(); }
+
   /// Api
   void SetApiId(std::string const & apiId) { m_apiId = apiId; }
   void SetApiUrl(std::string const & url) { m_apiUrl = url; }
@@ -267,6 +275,7 @@ private:
   kml::BookmarkData m_bookmarkData;
   /// If not invalid, track is bound to this place page.
   kml::TrackId m_trackId = kml::kInvalidTrackId;
+  std::vector<Track::TrackSelectionInfo> m_trackSelectionCandidates;
   /// Whether to treat it as plain feature.
   bool m_hasMetadata = false;
 
