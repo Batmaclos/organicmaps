@@ -500,8 +500,8 @@ Track * BookmarkManager::CreateTrack(kml::TrackData && trackData)
 Track const * BookmarkManager::GetTrack(kml::TrackId trackId) const
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
-  if (m_tempRelationTrack && m_tempRelationTrack->GetId() == trackId)
-    return m_tempRelationTrack.get();
+  if (trackId == kml::kTempRelationTrackId)
+    return m_tempRelationTracks.GetCurrentTrack();
   auto it = m_tracks.find(trackId);
   return (it != m_tracks.end()) ? it->second.get() : nullptr;
 }
@@ -932,10 +932,16 @@ void BookmarkManager::SetElevationActivePointChangedCallback(ElevationActivePoin
 Track::TrackSelectionInfo BookmarkManager::FindNearestTrack(m2::RectD const & touchRect,
                                                             TracksFilter const & tracksFilter) const
 {
+  auto const tracks = FindTracksInRect(touchRect, tracksFilter);
+  return tracks.empty() ? Track::TrackSelectionInfo{} : tracks.front();
+}
+
+std::vector<Track::TrackSelectionInfo> BookmarkManager::FindTracksInRect(m2::RectD const & touchRect,
+                                                                         TracksFilter const & tracksFilter) const
+{
   CHECK_THREAD_CHECKER(m_threadChecker, ());
-  Track::TrackSelectionInfo selectionInfo;
+  std::vector<Track::TrackSelectionInfo> selectionInfos;
   auto const tapPoint = touchRect.Center();
-  selectionInfo.SetDistanceFilter(touchRect);
 
   for (auto const & pair : m_categories)
   {
@@ -949,11 +955,22 @@ Track::TrackSelectionInfo BookmarkManager::FindNearestTrack(m2::RectD const & to
       if (tracksFilter && !tracksFilter(track))
         continue;
 
+      Track::TrackSelectionInfo selectionInfo;
+      selectionInfo.SetDistanceFilter(touchRect);
       track->UpdateSelectionInfo(tapPoint, selectionInfo);
+      if (selectionInfo.IsValid())
+        selectionInfos.push_back(selectionInfo);
     }
   }
 
-  return selectionInfo;
+  std::sort(selectionInfos.begin(), selectionInfos.end(), [](auto const & lhs, auto const & rhs)
+  {
+    if (lhs.m_squareDist != rhs.m_squareDist)
+      return lhs.m_squareDist < rhs.m_squareDist;
+    return lhs.m_trackId < rhs.m_trackId;
+  });
+
+  return selectionInfos;
 }
 
 Track::TrackSelectionInfo BookmarkManager::GetTrackSelectionInfo(kml::TrackId const & trackId) const
@@ -1234,28 +1251,37 @@ kml::TrackId BookmarkManager::SaveRoute(kml::TrackGeometry points, std::string c
   return trackId;
 }
 
-kml::TrackId BookmarkManager::SetTempRelationTrack(kml::TrackData && trackData)
+Track const * BookmarkManager::AddTempRelationTrack(RelationTrackKey const & key, kml::TrackData && trackData)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
 
-  ClearTempRelationTrack();
-
   trackData.m_id = kml::kTempRelationTrackId;
-  m_tempRelationTrack = std::make_unique<Track>(std::move(trackData));
-  m_changesTracker.OnAddLine(kml::kTempRelationTrackId);
-  return kml::kTempRelationTrackId;
+  auto const isNewTrack = m_tempRelationTracks.GetTrack(key) == nullptr;
+  auto track = std::make_unique<Track>(std::move(trackData));
+  auto * result = track.get();
+  m_tempRelationTracks.AddTrack(key, std::move(track));
+  if (isNewTrack)
+    m_changesTracker.OnAddLine(kml::kTempRelationTrackId);
+  CHECK(result != nullptr, ());
+  return result;
+}
+
+void BookmarkManager::SetCurrentRelationTrack(RelationTrackKey const & key)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  m_tempRelationTracks.SetCurrentTrack(key);
 }
 
 void BookmarkManager::ClearTempRelationTrack()
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());
 
-  if (!m_tempRelationTrack)
+  if (m_tempRelationTracks.IsEmpty())
     return;
 
   DeleteTrackSelectionMark(kml::kTempRelationTrackId);
   m_changesTracker.OnDeleteLine(kml::kTempRelationTrackId);
-  m_tempRelationTrack.reset();
+  m_tempRelationTracks.Clear();
 
   NotifyChanges(false /* saveChangesOnDisk */);
 }
@@ -3735,4 +3761,39 @@ bool BookmarkManager::EditSession::DeleteBmCategory(kml::MarkGroupId groupId, bo
 void BookmarkManager::EditSession::NotifyChanges()
 {
   m_bmManager.NotifyChanges(true /* saveChangesOnDisk */);
+}
+
+bool BookmarkManager::TempRelationTracks::IsEmpty() const
+{
+  return m_tracks.empty();
+}
+
+Track const * BookmarkManager::TempRelationTracks::GetTrack(RelationTrackKey const & key) const
+{
+  auto const it = m_tracks.find(key);
+  return it != m_tracks.end() ? it->second.get() : nullptr;
+}
+
+Track const * BookmarkManager::TempRelationTracks::GetCurrentTrack() const
+{
+  return m_currentTrack.IsValid() ? GetTrack(m_currentTrack) : nullptr;
+}
+
+void BookmarkManager::TempRelationTracks::AddTrack(RelationTrackKey const & key, std::unique_ptr<Track> track)
+{
+  m_tracks[key] = std::move(track);
+  if (!m_currentTrack.IsValid())
+    m_currentTrack = key;
+}
+
+void BookmarkManager::TempRelationTracks::SetCurrentTrack(RelationTrackKey const & key)
+{
+  CHECK(GetTrack(key) != nullptr, ());
+  m_currentTrack = key;
+}
+
+void BookmarkManager::TempRelationTracks::Clear()
+{
+  m_tracks.clear();
+  m_currentTrack = {};
 }

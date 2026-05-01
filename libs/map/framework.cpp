@@ -705,45 +705,61 @@ search::ReverseGeocoder::Address Framework::GetAddressAtPoint(m2::PointD const &
   return addr;
 }
 
-bool Framework::TryBuildRelationTrack(FeatureID const & fid, m2::PointD const & mercator, place_page::Info & outInfo)
+std::vector<Track::TrackSelectionInfo> Framework::FindRelationTracksInTapPosition(
+    std::vector<std::pair<double, FeatureID>> const & lineCandidates, m2::PointD const & mercator)
 {
   auto & bm = GetBookmarkManager();
   bm.ClearTempRelationTrack();
 
-  if (!fid.IsValid())
-    return false;
+  std::vector<Track::TrackSelectionInfo> selectionCandidates;
+  selectionCandidates.reserve(lineCandidates.size());
 
-  RelationTrackBuilder builder(m_featuresFetcher.GetDataSource(), fid, m_infoGetter.get());
-  auto trackData = builder.Build();
-  if (!trackData)
-    return false;
-
-  kml::TrackData kmlTrack;
-  for (auto & line : trackData->m_lines)
+  for (auto const & [dist, fid] : lineCandidates)
   {
-    kmlTrack.m_geometry.m_lines.push_back(std::move(line.m_points));
-    kmlTrack.m_geometry.m_timestamps.emplace_back();
+    if (!fid.IsValid())
+      continue;
+
+    RelationTrackBuilder builder(m_featuresFetcher.GetDataSource(), fid);
+    auto trackData = builder.Build();
+    if (!trackData)
+      continue;
+
+    kml::TrackData kmlTrack;
+    for (auto & line : trackData->m_lines)
+    {
+      kmlTrack.m_geometry.m_lines.push_back(std::move(line.m_points));
+      kmlTrack.m_geometry.m_timestamps.emplace_back();
+    }
+    kml::SetDefaultStr(kmlTrack.m_name, std::move(trackData->m_name));
+
+    kml::TrackLayer layer;
+    UpdateTrackSelectionColor(trackData->m_color);
+    layer.m_color.m_rgba = trackData->m_color.GetRGBA();
+    kmlTrack.m_layers.push_back(layer);
+
+    auto const * track = bm.AddTempRelationTrack(fid, std::move(kmlTrack));
+    CHECK(track, ());
+
+    Track::TrackSelectionInfo trackSelInfo;
+    track->UpdateSelectionInfo(mercator, trackSelInfo);
+    trackSelInfo.m_source = Track::TrackSelectionInfo::Source::Relation;
+    trackSelInfo.m_featureId = fid;
+    ASSERT(trackSelInfo.IsValid(), ());
+
+    selectionCandidates.push_back(trackSelInfo);
   }
-  kml::SetDefaultStr(kmlTrack.m_name, std::move(trackData->m_name));
 
-  kml::TrackLayer layer;
-  UpdateTrackSelectionColor(trackData->m_color);
-  layer.m_color.m_rgba = trackData->m_color.GetRGBA();
-  kmlTrack.m_layers.push_back(layer);
+  std::sort(selectionCandidates.begin(), selectionCandidates.end(), [](auto const & lhs, auto const & rhs)
+  {
+    if (lhs.m_squareDist != rhs.m_squareDist)
+      return lhs.m_squareDist < rhs.m_squareDist;
+    return lhs.m_featureId < rhs.m_featureId;
+  });
 
-  auto const trackId = bm.SetTempRelationTrack(std::move(kmlTrack));
-  auto const * track = bm.GetTrack(trackId);
-  CHECK(track, ());
+  if (!selectionCandidates.empty())
+    bm.SetCurrentRelationTrack(selectionCandidates.front().m_featureId);
 
-  // Snap to the nearest point on the track, same as BuildTrackPlacePage.
-  Track::TrackSelectionInfo trackSelInfo;
-  track->UpdateSelectionInfo(mercator, trackSelInfo);
-  ASSERT(trackSelInfo.IsValid(), ());
-
-  outInfo.SetSelectedObject(df::SelectionShape::OBJECT_TRACK);
-  FillTrackInfo(*track, trackSelInfo.m_trackPoint, outInfo);
-  bm.SetTrackSelectionInfo(trackSelInfo, true /* notifyListeners */);
-  return true;
+  return selectionCandidates;
 }
 
 void Framework::FillApiMarkInfo(ApiMarkPoint const & api, place_page::Info & info) const
@@ -888,6 +904,22 @@ void Framework::ShowTrack(kml::TrackId trackId)
 
   ShowRect(rect, true /* isAnim */, true /* useVisibleViewport */);
 
+  ActivateMapSelection();
+}
+
+void Framework::SelectTrackCandidateAtIndex(size_t index)
+{
+  CHECK(m_currentPlacePageInfo, ());
+  auto const candidates = m_currentPlacePageInfo->GetTrackCandidates();
+  CHECK(index < candidates.size(), ());
+  auto const & candidate = candidates[index];
+  CHECK(candidate.IsValid(), ());
+  auto & bm = GetBookmarkManager();
+
+  BuildTrackPlacePage(candidate, m_currentPlacePageInfo.value());
+  m_currentPlacePageInfo->SetTrackCandidates(candidates);
+  auto const trackId = m_currentPlacePageInfo->GetTrackId();
+  bm.UpdateElevationMyPosition(trackId);
   ActivateMapSelection();
 }
 
@@ -2282,9 +2314,14 @@ FeatureID Framework::FindBuildingAtPoint(m2::PointD const & mercator) const
 void Framework::BuildTrackPlacePage(Track::TrackSelectionInfo const & trackSelectionInfo, place_page::Info & info)
 {
   info.SetSelectedObject(df::SelectionShape::OBJECT_TRACK);
-  auto const & track = *GetBookmarkManager().GetTrack(trackSelectionInfo.m_trackId);
+  auto & bm = GetBookmarkManager();
+  // Because relation tracks always have the same trackId = kTempRelationTrackId.
+  if (trackSelectionInfo.m_source == Track::TrackSelectionInfo::Source::Relation)
+    bm.SetCurrentRelationTrack(trackSelectionInfo.m_featureId);
+
+  auto const & track = *bm.GetTrack(trackSelectionInfo.m_trackId);
   FillTrackInfo(track, trackSelectionInfo.m_trackPoint, info);
-  GetBookmarkManager().SetTrackSelectionInfo(trackSelectionInfo, true /* notifyListeners */);
+  bm.SetTrackSelectionInfo(trackSelectionInfo, true /* notifyListeners */);
 }
 
 place_page::Info Framework::BuildPlacePageInfo(place_page::BuildInfo const & buildInfo)
@@ -2352,23 +2389,31 @@ place_page::Info Framework::BuildPlacePageInfo(place_page::BuildInfo const & bui
     return outInfo;
   }
 
-  // 4. User Tracks. Using VisualParams inside FindTrackInTapPosition/GetDefaultTapRect requires drapeEngine.
+  // 4. User Tracks. Using VisualParams inside FindTracksInTapPosition/GetDefaultTapRect requires drapeEngine.
   if (m_drapeEngine != nullptr && buildInfo.IsTrackMatchingEnabled())
   {
-    Track::TrackSelectionInfo trackSelInfo;
+    Track::TrackSelectionInfo trackToSelect;
+    std::vector<Track::TrackSelectionInfo> trackSelectionCandidates;
+
     if (buildInfo.m_trackId != kml::kInvalidTrackId)
     {
       // Known track: find the closest point to the track's bounding-rect center, no distance limit.
       auto const * track = GetBookmarkManager().GetTrack(buildInfo.m_trackId);
-      track->UpdateSelectionInfo(track->GetLimitRect().Center(), trackSelInfo);
-      ASSERT(trackSelInfo.IsValid(), ());
+      track->UpdateSelectionInfo(track->GetLimitRect().Center(), trackToSelect);
+      ASSERT(trackToSelect.IsValid(), ());
+      trackSelectionCandidates.push_back(trackToSelect);
     }
     else
-      trackSelInfo = FindTrackInTapPosition(buildInfo);
-
-    if (trackSelInfo.IsValid())
     {
-      BuildTrackPlacePage(trackSelInfo, outInfo);
+      trackSelectionCandidates = FindTracksInTapPosition(buildInfo);
+      if (!trackSelectionCandidates.empty())
+        trackToSelect = trackSelectionCandidates.front();
+    }
+
+    if (trackToSelect.IsValid())
+    {
+      BuildTrackPlacePage(trackToSelect, outInfo);
+      outInfo.SetTrackCandidates(trackSelectionCandidates);
       return outInfo;
     }
   }
@@ -2402,14 +2447,20 @@ place_page::Info Framework::BuildPlacePageInfo(place_page::BuildInfo const & bui
     }
     else
     {
-      // Try building a route relation track from line candidates (closest first).
-      for (auto const & [dist, fid] : tap.m_lineCandidates)
+      Track::TrackSelectionInfo trackToSelect;
+      // Try building a route relation tracks from line candidates.
+      auto const trackSelectionCandidates = FindRelationTracksInTapPosition(tap.m_lineCandidates, buildInfo.m_mercator);
+      if (!trackSelectionCandidates.empty())
+        trackToSelect = trackSelectionCandidates.front();
+
+      // Set first track as selected to display.
+      if (trackToSelect.IsValid())
       {
-        if (TryBuildRelationTrack(fid, buildInfo.m_mercator, outInfo))
-        {
-          sp.SetPlacePageLocation(outInfo);
-          return outInfo;
-        }
+        outInfo.SetSelectedObject(df::SelectionShape::OBJECT_TRACK);
+        sp.SetPlacePageLocation(outInfo);
+        BuildTrackPlacePage(trackToSelect, outInfo);
+        outInfo.SetTrackCandidates(std::move(trackSelectionCandidates));
+        return outInfo;
       }
 
       auto const bestFeature = tap.m_line.IsValid() ? tap.m_line : tap.m_area;
@@ -2447,7 +2498,7 @@ void Framework::UpdatePlacePageInfoForCurrentSelection(std::optional<place_page:
     m_onPlacePageUpdate();
 }
 
-Track::TrackSelectionInfo Framework::FindTrackInTapPosition(place_page::BuildInfo const & buildInfo) const
+std::vector<Track::TrackSelectionInfo> Framework::FindTracksInTapPosition(place_page::BuildInfo const & buildInfo) const
 {
   auto const & bm = GetBookmarkManager();
   if (buildInfo.m_trackId != kml::kInvalidTrackId)
@@ -2456,10 +2507,10 @@ Track::TrackSelectionInfo Framework::FindTrackInTapPosition(place_page::BuildInf
       return {};
     auto const selection = bm.GetTrackSelectionInfo(buildInfo.m_trackId);
     CHECK_NOT_EQUAL(selection.m_trackId, kml::kInvalidTrackId, ());
-    return selection;
+    return {selection};
   }
   auto const touchRect = df::TapInfo::GetDefaultTapRect(buildInfo.m_mercator, m_currentModelView).GetGlobalRect();
-  return bm.FindNearestTrack(touchRect);
+  return bm.FindTracksInRect(touchRect);
 }
 
 UserMark const * Framework::FindUserMarkInTapPosition(place_page::BuildInfo const & buildInfo) const
