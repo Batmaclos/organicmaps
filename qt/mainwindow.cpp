@@ -97,13 +97,14 @@ MainWindow::MainWindow(Framework & framework, std::unique_ptr<ScreenshotParams> 
                        QRect const & screenGeometry
 #ifdef BUILD_DESIGNER
                        ,
-                       QString const & mapcssFilePath
+                       QString const & mapcssFilePath, build_style::StyleInfo const & styleInfo
 #endif
                        )
   : m_locationService(CreateDesktopLocationService(*this))
   , m_screenshotMode(screenshotParams != nullptr)
 #ifdef BUILD_DESIGNER
   , m_mapcssFilePath(mapcssFilePath)
+  , m_styleInfo(styleInfo)
 #endif
 {
   setGeometry(screenGeometry);
@@ -664,7 +665,7 @@ void MainWindow::OnBuildStyle()
 {
   try
   {
-    build_style::BuildAndApply(m_mapcssFilePath);
+    build_style::BuildAndApply(m_mapcssFilePath, m_styleInfo);
     m_pDrawWidget->RefreshDrawingRules();
 
     bool enabled;
