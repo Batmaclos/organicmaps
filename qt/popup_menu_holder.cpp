@@ -47,6 +47,13 @@ void PopupMenuHolder::setChecked(size_t idx, bool checked)
   m_actions[idx]->setChecked(checked);
 }
 
+void PopupMenuHolder::setEnabled(size_t idx, bool enabled)
+{
+  CHECK_LESS(idx, m_actions.size(), ());
+  ASSERT(m_actions[idx]->isCheckable(), ());
+  m_actions[idx]->setEnabled(enabled);
+}
+
 bool PopupMenuHolder::isChecked(size_t idx)
 {
   CHECK_LESS(idx, m_actions.size(), ());

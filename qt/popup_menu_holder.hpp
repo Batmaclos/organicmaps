@@ -49,6 +49,7 @@ public:
   }
 
   void setChecked(size_t idx, bool checked);
+  void setEnabled(size_t idx, bool enabled);
 
   bool isChecked(size_t idx);
   template <class T>

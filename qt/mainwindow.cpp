@@ -299,6 +299,12 @@ void MainWindow::CreateNavigationBar()
     m_layers->addAction(QIcon(":/navig64/isolines.png"), tr("Outdoors"),
                         std::bind(&MainWindow::OnLayerEnabled, this, OUTDOORS), true);
     m_layers->setChecked(OUTDOORS, Framework::LoadOutdoorsEnabled());
+#else
+    // Outdoors button should still be added to the toolbar to keep order or actions.
+    m_layers->addAction(QIcon(":/navig64/isolines.png"), tr("Outdoors"),
+                        std::bind(&MainWindow::OnLayerEnabled, this, OUTDOORS), true);
+    m_layers->setChecked(OUTDOORS, false);
+    m_layers->setEnabled(OUTDOORS, false);
 #endif  // BUILD_DESIGNER
 
     m_layers->addAction(QIcon(":/navig64/isolines.png"), tr("Hiking"),
