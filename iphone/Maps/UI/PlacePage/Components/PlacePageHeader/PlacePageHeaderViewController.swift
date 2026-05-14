@@ -60,7 +60,8 @@ final class PlacePageHeaderViewController: UIViewController {
     cancelButton.addTarget(self, action: #selector(didTapCancelButton), for: .touchUpInside)
     cancelButton.isHidden = true
 
-    titleTextView.font = StyleManager.shared.theme!.fonts.medium20
+    titleTextView.font = .medium20.dynamic
+    titleTextView.adjustsFontForContentSizeCategory = true
     titleTextView.isEditable = presenter?.canEditTitle ?? false
     titleTextView.isScrollEnabled = false
     titleTextView.backgroundColor = .clear
@@ -75,7 +76,8 @@ final class PlacePageHeaderViewController: UIViewController {
     clearTitleTextButton.isHidden = true
     clearTitleTextButton.addTarget(self, action: #selector(didTapClearTitleButton), for: .touchUpInside)
 
-    subtitleLabel.font = StyleManager.shared.theme!.fonts.medium16
+    subtitleLabel.font = .medium16.dynamic
+    subtitleLabel.adjustsFontForContentSizeCategory = true
 
     if presenter?.objectType == .track, presenter?.canShare == true {
       configureTrackSharingMenu()
@@ -143,7 +145,7 @@ extension PlacePageHeaderViewController: PlacePageHeaderViewProtocol {
     titleTextViewTrailingConstraint.constant = isEditingTitle ? Constants.titleTrailingInsetEditing : 0
 
     let titleAttributes: [NSAttributedString.Key: Any] = [
-      .font: StyleManager.shared.theme!.fonts.medium20,
+      .font: UIFont.medium20,
       .foregroundColor: UIColor.blackPrimaryText,
     ]
     let editImage = NSTextAttachment()
