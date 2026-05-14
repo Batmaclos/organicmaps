@@ -130,6 +130,7 @@ private class ChartYAxisInnerView: UIView {
   static func makeLabel() -> UILabel {
     let label = UILabel()
     label.font = ChartYAxisInnerView.font
+    label.adjustsFontForContentSizeCategory = true
     label.transform = CGAffineTransform.identity.scaledBy(x: 1, y: -1)
     return label
   }
