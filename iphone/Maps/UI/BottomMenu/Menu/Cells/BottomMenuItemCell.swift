@@ -1,6 +1,4 @@
-import UIKit
-
-class BottomMenuItemCell: UITableViewCell {
+final class BottomMenuItemCell: UITableViewCell {
   private enum Constants {
     static let badgeSpacing: CGFloat = 8
     static let badgeBackgroundWidth: CGFloat = 32
@@ -11,8 +9,6 @@ class BottomMenuItemCell: UITableViewCell {
   @IBOutlet private var badgeCountLabel: UILabel!
   @IBOutlet private var separator: UIView!
   @IBOutlet private var icon: UIImageView!
-  @IBOutlet private var badgeSpacingConstraint: NSLayoutConstraint!
-  @IBOutlet private var badgeBackgroundWidthConstraint: NSLayoutConstraint!
   var anchorView: UIView {
     icon
   }
@@ -24,19 +20,13 @@ class BottomMenuItemCell: UITableViewCell {
                  badgeCount: UInt = .zero,
                  imageStyle: GlobalStyleSheet = .black,
                  enabled: Bool = true) {
+    icon.setStyleAndApply(isEnabled ? imageStyle : .gray)
     icon.image = image
     label.text = title
+    label.setFontStyleAndApply(.regular16, color: isEnabled ? .blackPrimary : .blackHint)
     badgeBackground.isHidden = badgeCount == 0
     badgeCountLabel.text = "\(badgeCount)"
-    if badgeCount == 0 {
-      badgeSpacingConstraint.constant = 0
-      badgeBackgroundWidthConstraint.constant = 0
-    } else {
-      badgeSpacingConstraint.constant = Constants.badgeSpacing
-      badgeBackgroundWidthConstraint.constant = Constants.badgeBackgroundWidth
-    }
+    badgeCountLabel.setFontStyleAndApply(.medium14, color: .whitePrimary)
     isEnabled = enabled
-    icon.setStyleAndApply(isEnabled ? imageStyle : .gray)
-    label.setFontStyleAndApply(isEnabled ? .blackPrimary : .blackHint)
   }
 }

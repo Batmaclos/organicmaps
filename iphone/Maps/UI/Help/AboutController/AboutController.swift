@@ -81,8 +81,7 @@ private extension AboutController {
     func setupTitle() {
       let titleView = UILabel()
       titleView.text = Self.formattedAppVersion()
-      titleView.textColor = .white
-      titleView.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+      titleView.setFontStyle(.semibold16, color: .white)
       titleView.isUserInteractionEnabled = true
       titleView.numberOfLines = 1
       titleView.allowsDefaultTighteningForTruncation = true
