@@ -1108,6 +1108,11 @@ JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeShowTrackRect(JNIEnv * e
   frm()->ShowTrack(static_cast<kml::TrackId>(track));
 }
 
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeSelectTrackCandidate(JNIEnv *, jclass, jint index)
+{
+  frm()->SelectTrackCandidateAtIndex(static_cast<size_t>(index));
+}
+
 JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeSaveRoute(JNIEnv *, jclass)
 {
   frm()->SaveRoute();
