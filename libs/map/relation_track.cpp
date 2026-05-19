@@ -239,7 +239,8 @@ RelationTrackBuilder::RelationTrackBuilder(DataSource const & dataSource, Featur
   , m_infoGetter(infoGetter)
 {}
 
-std::optional<RelationTrackBuilder::Data> RelationTrackBuilder::Build()
+std::optional<RelationTrackBuilder::Data> RelationTrackBuilder::Build(
+    std::unordered_set<RelationID> * processedRelations)
 {
   df::RelationsDrawSettings sett;
   sett.Load();
@@ -255,8 +256,12 @@ std::optional<RelationTrackBuilder::Data> RelationTrackBuilder::Build()
     if (!sett.MatchHikingOrCycling(ft->ReadRelationType(relID)))
       continue;
 
+    RelationID const relationId(m_fid.m_mwmId, relID);
+    if (processedRelations != nullptr && !processedRelations->insert(relationId).second)
+      continue;
+
     auto const rel = ft->ReadRelation<feature::RouteRelation>(relID);
-    auto members = LoadMemberGeometries(rel, guard, RelationID(m_fid.m_mwmId, relID));
+    auto members = LoadMemberGeometries(rel, guard, relationId);
     if (members.empty())
       continue;
 
@@ -269,11 +274,37 @@ std::optional<RelationTrackBuilder::Data> RelationTrackBuilder::Build()
 
     Data data;
     data.m_lines = std::move(lines);
+    data.m_relationId = relationId;
     data.m_name = std::string(rel.GetDefaultName());
     data.m_color = rel.GetColor();
     return data;
   }
   return std::nullopt;
+}
+
+std::optional<RelationTrackBuilder::Data> RelationTrackBuilder::Build(RelationID const & relationId)
+{
+  if (!relationId.IsValid())
+    return std::nullopt;
+
+  FeaturesLoaderGuard guard(m_dataSource, relationId.m_mwmId);
+  auto const rel = guard.GetRelation(relationId.m_index);
+  auto members = LoadMemberGeometries(rel, guard, relationId);
+  if (members.empty())
+    return std::nullopt;
+
+  AppendNeighbourMembers(guard, relationId.m_index, members);
+
+  auto lines = MergeAllMembers(members);
+  if (lines.empty())
+    return std::nullopt;
+
+  Data data;
+  data.m_lines = std::move(lines);
+  data.m_relationId = relationId;
+  data.m_name = std::string(rel.GetDefaultName());
+  data.m_color = rel.GetColor();
+  return data;
 }
 
 void RelationTrackBuilder::AppendNeighbourMembers(FeaturesLoaderGuard const & guard, uint32_t relIdx,

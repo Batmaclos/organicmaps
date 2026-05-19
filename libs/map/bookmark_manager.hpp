@@ -44,9 +44,6 @@ class BookmarkManager final
   using BookmarksCollection = std::map<kml::MarkId, std::unique_ptr<Bookmark>>;
   using TracksCollection = std::map<kml::TrackId, std::unique_ptr<Track>>;
 
-  using RelationTrackKey = FeatureID;
-  using RelationTracksCollection = std::map<RelationTrackKey, std::unique_ptr<Track>>;
-
 public:
   using KMLDataCollection = std::vector<std::pair<std::string, std::unique_ptr<kml::FileData>>>;
   using KMLDataCollectionPtr = std::shared_ptr<KMLDataCollection>;
@@ -440,8 +437,9 @@ public:
 
   kml::TrackId SaveRoute(kml::TrackGeometry points, std::string const & from, std::string const & to);
 
-  Track const * AddTempRelationTrack(RelationTrackKey const & key, kml::TrackData && trackData);
-  void SetCurrentRelationTrack(RelationTrackKey const & key);
+  /// Creates a temporary track from relation data. Replaces any previous temp track.
+  kml::TrackId SetTempRelationTrack(kml::TrackData && trackData);
+  /// Removes the current temporary relation track, if any.
   void ClearTempRelationTrack();
 
   void UpdateBookmarksTextPlacement();
@@ -772,21 +770,7 @@ private:
   MarksCollection m_userMarks;
   BookmarksCollection m_bookmarks;
   TracksCollection m_tracks;
-
-  struct TempRelationTracks
-  {
-    bool IsEmpty() const;
-    Track const * GetTrack(RelationTrackKey const & key) const;
-    Track const * GetCurrentTrack() const;
-    void AddTrack(RelationTrackKey const & key, std::unique_ptr<Track> track);
-    void SetCurrentTrack(RelationTrackKey const & key);
-    void Clear();
-
-    RelationTracksCollection m_tracks;
-    RelationTrackKey m_currentTrack;
-  };
-
-  TempRelationTracks m_tempRelationTracks;
+  std::unique_ptr<Track> m_tempRelationTrack;
 
   StaticMarkPoint * m_selectionMark = nullptr;
   MyPositionMarkPoint * m_myPositionMark = nullptr;

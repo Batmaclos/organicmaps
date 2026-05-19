@@ -70,6 +70,7 @@ public:
   struct Data
   {
     std::vector<Geometry> m_lines;
+    RelationID m_relationId;
     std::string m_name;
     dp::Color m_color;
   };
@@ -79,7 +80,8 @@ public:
                        storage::CountryInfoGetter const * infoGetter = nullptr);
 
   /// @return nullopt if no suitable relation found or geometry can't be built.
-  std::optional<Data> Build();
+  std::optional<Data> Build(std::unordered_set<RelationID> * processedRelations = nullptr);
+  std::optional<Data> Build(RelationID const & relationId);
 
   /// Builds a SelectionInfo (ordered polylines + color) for a specific relation (by @p relID),
   /// using MergeOrdered — suitable for public-transport routes where way ordering is meaningful.

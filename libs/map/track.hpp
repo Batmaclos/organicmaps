@@ -43,12 +43,6 @@ public:
 
   struct TrackSelectionInfo
   {
-    enum class Source
-    {
-      Track,
-      Relation
-    };
-
     TrackSelectionInfo() = default;
     TrackSelectionInfo(kml::TrackId trackId, m2::PointD const & trackPoint, double distFromBegM)
       : m_trackId(trackId)
@@ -71,8 +65,8 @@ public:
     /// @return true  Data is initialized and correct (after UpdateSelectionInfo call).
     /// Can be false if input m_squareDist filtered all track's segments.
     bool IsValid() const { return m_trackId != kml::kInvalidTrackId; }
+    bool IsRelation() const { return m_trackId == kml::kTempRelationTrackId && m_featureId.IsValid(); }
 
-    Source m_source = Source::Track;
     kml::TrackId m_trackId = kml::kInvalidTrackId;
     m2::PointD m_trackPoint;
     FeatureID m_featureId;  // Relation only.

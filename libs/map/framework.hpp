@@ -275,7 +275,7 @@ public:
   void ShowFeature(FeatureID const & featureId);
   void ShowBookmarkCategory(kml::MarkGroupId categoryId, bool animation = true);
 
-  void SelectTrackCandidateAtIndex(size_t candidateIndex);
+  void SelectTrackCandidate(kml::TrackId trackId, FeatureID const & featureId);
 
   void AddBookmarksFile(std::string const & filePath, bool isTemporaryFile);
 
