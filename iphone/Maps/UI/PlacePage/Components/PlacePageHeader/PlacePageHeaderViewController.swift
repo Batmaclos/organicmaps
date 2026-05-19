@@ -10,8 +10,8 @@ protocol PlacePageHeaderViewProtocol: AnyObject {
 
 final class PlacePageHeaderViewController: UIViewController {
   private enum Constants {
-    static let editImageRect = CGRect(x: 0, y: -2, width: 14, height: 14)
     static let titleTrailingInsetEditing: CGFloat = 22
+    static var titleFont: UIFont { UIFont.medium20.dynamic }
   }
 
   @IBOutlet private var headerView: PlacePageHeaderView!
@@ -60,7 +60,7 @@ final class PlacePageHeaderViewController: UIViewController {
     cancelButton.addTarget(self, action: #selector(didTapCancelButton), for: .touchUpInside)
     cancelButton.isHidden = true
 
-    titleTextView.font = .medium20.dynamic
+    titleTextView.font = Constants.titleFont
     titleTextView.adjustsFontForContentSizeCategory = true
     titleTextView.isEditable = presenter?.canEditTitle ?? false
     titleTextView.isScrollEnabled = false
@@ -77,10 +77,18 @@ final class PlacePageHeaderViewController: UIViewController {
     clearTitleTextButton.addTarget(self, action: #selector(didTapClearTitleButton), for: .touchUpInside)
 
     subtitleLabel.font = .medium16.dynamic
+    subtitleLabel.numberOfLines = 0
     subtitleLabel.adjustsFontForContentSizeCategory = true
 
     if presenter?.objectType == .track, presenter?.canShare == true {
       configureTrackSharingMenu()
+    }
+  }
+
+  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    super.traitCollectionDidChange(previousTraitCollection)
+    if previousTraitCollection?.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory {
+      updateTitleEditingStyle()
     }
   }
 
@@ -145,12 +153,14 @@ extension PlacePageHeaderViewController: PlacePageHeaderViewProtocol {
     titleTextViewTrailingConstraint.constant = isEditingTitle ? Constants.titleTrailingInsetEditing : 0
 
     let titleAttributes: [NSAttributedString.Key: Any] = [
-      .font: UIFont.medium20,
+      .font: Constants.titleFont,
       .foregroundColor: UIColor.blackPrimaryText,
     ]
     let editImage = NSTextAttachment()
     editImage.image = UIImage(resource: .ic24PxEdit)
-    editImage.bounds = Constants.editImageRect
+    let editImageHeight = Constants.titleFont.pointSize * 0.7
+    let editImageRect = CGRect(x: 0, y: -(editImageHeight / 4), width: editImageHeight, height: editImageHeight)
+    editImage.bounds = editImageRect
     let editString = NSMutableAttributedString(attachment: editImage)
     editString.addAttributes([.foregroundColor: UIColor.linkBlue],
                              range: NSRange(location: 0, length: editString.length))
