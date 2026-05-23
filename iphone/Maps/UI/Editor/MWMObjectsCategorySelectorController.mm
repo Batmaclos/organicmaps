@@ -107,6 +107,8 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
   titleLabel.textAlignment = NSTextAlignmentCenter;
   titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
   titleLabel.font = UIFont.bold17.dynamic;
+  titleLabel.adjustsFontForContentSizeCategory = YES;
+  titleLabel.numberOfLines = 0;
 
   UITextView * subtitleTextView = [[UITextView alloc] init];
   subtitleTextView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -114,6 +116,7 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
   subtitleTextView.scrollEnabled = NO;
   subtitleTextView.backgroundColor = [UIColor clearColor];
   subtitleTextView.textContainerInset = UIEdgeInsetsZero;
+  subtitleTextView.adjustsFontForContentSizeCategory = YES;
 
   NSString * subtitleHTML = L(@"editor_category_unsuitable_text");
   NSData * htmlData = [subtitleHTML dataUsingEncoding:NSUnicodeStringEncoding];

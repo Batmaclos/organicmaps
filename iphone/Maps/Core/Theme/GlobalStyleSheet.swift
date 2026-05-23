@@ -122,7 +122,7 @@ extension GlobalStyleSheet: IStyleSheet {
       }
     case .navigationBarItem:
       return .add { s in
-        s.fontStyle = .dynamic(.regular18)
+        s.fontStyle = .dynamic(.regular18, maxSize: 24)
         s.fontColor = .whitePrimaryText
         s.fontColorDisabled = UIColor.lightGray
         s.fontColorHighlighted = .whitePrimaryTextHighlighted
