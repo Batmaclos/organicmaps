@@ -21,7 +21,6 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
                                                     MWMKeyboardObserver>
 {}
 
-@property(weak, nonatomic) IBOutlet UITableView * tableView;
 @property(nonatomic) UISearchController * searchViewController;
 
 @property(nonatomic) NSString * selectedType;
@@ -44,17 +43,11 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
 {
   [super viewDidLoad];
   self.isSearch = NO;
-  [self configTable];
   [self configNavBar];
   [self configSearchBar];
   [self configEmptySearchResultsDisclaimer];
   [MWMKeyboard addObserver:self];
   self.dataSource = [[MWMObjectsCategorySelectorDataSource alloc] init];
-}
-
-- (void)configTable
-{
-  [self.tableView registerClass:[MWMTableViewCell class] forCellReuseIdentifier:[UITableViewCell className]];
 }
 
 - (void)setSelectedCategory:(std::string const &)type
@@ -82,14 +75,10 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
   self.navigationItem.hidesSearchBarWhenScrolling = YES;
   self.navigationItem.searchController = self.searchViewController;
   if (@available(iOS 26.0, *))
-  {
     // The search bar will appear at the bottom of the iPhone screen and cannot be hidden.
     self.navigationItem.hidesSearchBarWhenScrolling = YES;
-  }
   else
-  {
     self.navigationItem.hidesSearchBarWhenScrolling = NO;
-  }
 }
 
 - (void)configEmptySearchResultsDisclaimer
@@ -213,7 +202,7 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-  auto cell = [tableView dequeueReusableCellWithCellClass:[UITableViewCell class] indexPath:indexPath];
+  UITableViewCell * cell = [tableView dequeueDefaultCellForIndexPath:indexPath];
   NSString * type;
   if (!self.isSearch && indexPath.section == 0 && [self.dataSource recentCategoriesListSize] > 0)
   {
@@ -226,10 +215,8 @@ NSString * const kToEditorSegue = @"CategorySelectorToEditorSegue";
     type = [self.dataSource getType:indexPath.row];
   }
 
-  if ([type isEqualToString:self.selectedType])
-    cell.accessoryType = UITableViewCellAccessoryCheckmark;
-  else
-    cell.accessoryType = UITableViewCellAccessoryNone;
+  cell.accessoryType =
+      [type isEqualToString:self.selectedType] ? UITableViewCellAccessoryCheckmark : UITableViewCellAccessoryNone;
   return cell;
 }
 
