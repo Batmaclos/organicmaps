@@ -117,10 +117,7 @@ final class NavigationControlView: SolidTouchView {
     label.adjustsFontForContentSizeCategory = true
     label.clipsToBounds = true
     label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-    label.numberOfLines = 1
-    label.adjustsFontSizeToFitWidth = true
-    label.minimumScaleFactor = 0.5
-    label.allowsDefaultTighteningForTruncation = true
+    label.configureSingleLineAutoScaling()
   }
 
   private func configureButton(_ button: UIButton) {

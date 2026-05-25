@@ -83,10 +83,7 @@ private extension AboutController {
       titleView.text = Self.formattedAppVersion()
       titleView.setFontStyle(.semibold16, color: .white)
       titleView.isUserInteractionEnabled = true
-      titleView.numberOfLines = 1
-      titleView.allowsDefaultTighteningForTruncation = true
-      titleView.adjustsFontSizeToFitWidth = true
-      titleView.minimumScaleFactor = 0.5
+      titleView.configureSingleLineAutoScaling()
       let titleDidTapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(appVersionButtonTapped))
       titleView.addGestureRecognizer(titleDidTapGestureRecognizer)
       navigationItem.titleView = titleView
@@ -111,10 +108,7 @@ private extension AboutController {
       headerTitleLabel.setFontStyle(.semibold18, color: .blackPrimary)
       headerTitleLabel.text = L("about_headline")
       headerTitleLabel.textAlignment = .center
-      headerTitleLabel.numberOfLines = 1
-      headerTitleLabel.allowsDefaultTighteningForTruncation = true
-      headerTitleLabel.adjustsFontSizeToFitWidth = true
-      headerTitleLabel.minimumScaleFactor = 0.5
+      headerTitleLabel.configureSingleLineAutoScaling()
     }
 
     func setupAdditionalInfo() {
@@ -154,10 +148,7 @@ private extension AboutController {
     func setupSocialMediaCollection() {
       socialMediaHeaderLabel.setFontStyle(.regular16, color: .blackPrimary)
       socialMediaHeaderLabel.text = L("follow_us")
-      socialMediaHeaderLabel.numberOfLines = 1
-      socialMediaHeaderLabel.allowsDefaultTighteningForTruncation = true
-      socialMediaHeaderLabel.adjustsFontSizeToFitWidth = true
-      socialMediaHeaderLabel.minimumScaleFactor = 0.5
+      socialMediaHeaderLabel.configureSingleLineAutoScaling()
 
       socialMediaCollectionView.backgroundColor = .clear
       socialMediaCollectionView.isScrollEnabled = false

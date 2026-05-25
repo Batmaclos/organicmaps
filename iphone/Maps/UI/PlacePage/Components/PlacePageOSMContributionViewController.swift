@@ -75,10 +75,7 @@ final class PlacePageOSMContributionViewController: UIViewController {
     }
     button.addTarget(self, action: action, for: .touchUpInside)
     button.setStyle(.flatNormalGrayButtonBig)
-    button.titleLabel?.minimumScaleFactor = 0.5
-    button.titleLabel?.adjustsFontSizeToFitWidth = true
-    button.titleLabel?.allowsDefaultTighteningForTruncation = true
-    button.titleLabel?.numberOfLines = 1
+    button.titleLabel?.configureSingleLineAutoScaling()
   }
 
   private func layoutView() {

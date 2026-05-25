@@ -59,10 +59,7 @@ private class HeaderCell: UICollectionViewCell {
     label.attributedText = NSAttributedString(string: text.uppercased(),
                                               attributes: deselectedAttributes)
     label.adjustsFontForContentSizeCategory = true
-    label.allowsDefaultTighteningForTruncation = true
-    label.numberOfLines = 1
-    label.adjustsFontSizeToFitWidth = true
-    label.minimumScaleFactor = 0.5
+    label.configureSingleLineAutoScaling()
   }
 }
 
