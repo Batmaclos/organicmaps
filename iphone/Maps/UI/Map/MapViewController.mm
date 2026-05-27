@@ -429,11 +429,22 @@ NSString * const kSettingsSegue = @"Map2Settings";
   [self.controlsManager viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 }
 
+- (void)updateMapFontScaleFactor
+{
+  double const scaleFactor =
+      [MapFontScaleFactor valueForContentSizeCategory:self.traitCollection.preferredContentSizeCategory];
+  [MWMFrameworkHelper setMapFontScaleFactor:scaleFactor];
+}
+
 - (void)traitCollectionDidChange:(UITraitCollection *)previousTraitCollection
 {
   [super traitCollectionDidChange:previousTraitCollection];
   if (self.traitCollection.verticalSizeClass != previousTraitCollection.verticalSizeClass)
     [self updatePlacePageContainerConstraints];
+
+  if (previousTraitCollection == nil || ![previousTraitCollection.preferredContentSizeCategory
+                                            isEqualToString:self.traitCollection.preferredContentSizeCategory])
+    [self updateMapFontScaleFactor];
 }
 
 - (void)didReceiveMemoryWarning
@@ -457,6 +468,8 @@ NSString * const kSettingsSegue = @"Map2Settings";
 - (void)viewWillAppear:(BOOL)animated
 {
   [super viewWillAppear:animated];
+
+  [self updateMapFontScaleFactor];
 
   if (self.navigationDashboardManager.state == MWMNavigationDashboardStateClosed)
     self.controlsManager.menuState = self.controlsManager.menuRestoreState;
